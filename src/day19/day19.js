@@ -2,9 +2,7 @@ import { readFileSync } from "fs";
 import { deepStrictEqual, strictEqual } from 'assert';
 
 
-
-
-function addRule(string, memory) {
+function createRegex(string, memory, part2) {
     if (!string)
         return;
 
@@ -40,7 +38,6 @@ function addRule(string, memory) {
         return true;
     }
 
-
     res = rest.split(' ');
     let s = "";
     let allOk = true
@@ -52,35 +49,32 @@ function addRule(string, memory) {
     });
 
     if (allOk) {
-        memory.set(ruleNr, s);
+        if (part2 && ruleNr === '8') {
+            memory.set(ruleNr, recurse8(s, 10));
+        }
+        else if (part2 && ruleNr === '11') {
+            let parts = [];
+            res.forEach(rule => {
+                const r = memory.get(rule);
+                parts.push(r);
+            });
+
+            const newRule = recurse11(parts[0], parts[1], 5);
+            memory.set(ruleNr, newRule);
+        }
+        else {
+            memory.set(ruleNr, s);
+        }
         return true;
     }
     return false;
 }
 
 
-// let memory = new Map();
-// addRule('5: "b"', memory);
-// addRule('4: "a"', memory);
-// addRule('3: 4 5 | 5 4', memory);
-// addRule('2: 4 4 | 5 5', memory);
-// addRule('1: 2 3 | 3 2', memory)
-// addRule('0: 4 1 5', memory)
-// //console.log(memory)
-
-// let regexp = new RegExp(memory.get('0'));
-// //console.log('ababbb'.match(regexp));
-// //console.log('bababa'.match(regexp));
-// //console.log('aaabbb'.match(regexp));
-// //console.log('abbbab'.match(regexp));
-// //console.log('aaaabbb'.match(regexp));
-
-
-function solve(filename) {
+function solve(filename, part2) {
     let lines = readFileSync(filename, 'utf-8').split('\r\n');
     let firstPart = true;
-
-    let rules = [Array(Number(lines.length))];
+    let rules = [];
     let messages = [];
     
     lines.forEach((line) => {
@@ -89,8 +83,7 @@ function solve(filename) {
                 firstPart = false;
             }
             else {
-                const res = line.match(new RegExp(/(\d+): (.+)/));
-                rules[Number(res[1])] = line;
+                rules.push(line);
             }
         }
         else {
@@ -98,35 +91,49 @@ function solve(filename) {
         }
     })
 
-    console.log(rules)
-    console.log(messages)
-
     let memory = new Map();
     let prev = 0;
+    // loop through and resolve rules where possible... :/
     while(prev !== rules.length) {
         prev = rules.length;
         for (let i = rules.length -1; i >= 0; i--) {
-            if (addRule(rules[i], memory)) {
-                console.log('removing', rules[i], 'length: ',rules.length)
+            if (createRegex(rules[i], memory, part2)) {
                 rules.splice(i, 1);
                 break;
             }
         }
     }
-    console.log(memory)
-    console.log(rules)
     
-    let regexp = new RegExp(memory.get('0'));
+    const finalRegexp = new RegExp(memory.get('0'));
 
     let count = 0;
     messages.forEach((message) => {
-        const mat = message.match(regexp);
+        const mat = message.match(finalRegexp);
         if (mat && mat[0] === message) {
             count++;
         }
     })
     console.log(count)
-
+    return count;
 }
 
-solve('input.txt')
+solve('input.txt', false); // part 1 - 144
+
+strictEqual(solve('test3-part2.txt', true), 12);
+strictEqual(solve('test4-part2.txt', true), 4);
+solve('input.txt', true); // part 2 - 260
+
+
+function recurse8(part1, count) {
+    if (count === 0)
+        return part1;
+
+    return '(' + part1 + '|' + part1 + recurse8(part1, count - 1) + ')';
+}
+
+function recurse11(part1, part2, count) {
+    if (count === 0)
+        return part1 + part2;
+
+    return '(' + part1 + part2 + '|' + part1 + recurse11(part1, part2, count - 1) + part2 + ')';
+}
