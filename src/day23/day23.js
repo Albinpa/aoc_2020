@@ -1,117 +1,81 @@
-import { readFileSync } from "fs";
 import { deepStrictEqual, strictEqual } from 'assert';
 
 
 function crabCup(input, moves, part2) {
-    let list = [...input].map(char => Number(char));
-    const min = Math.min(...list);
-    let max = Math.max(...list);
+    let list = [...input].map((char, i) => {
+        return {val: Number(char), next: i + 1}
+    });
+    const min = 1;
+    let max = 9;
 
     if (part2) {
         max = 1000000;
         for (let i = 10; i <= max; i++) {
-            list.push(i);
+            list.push({val: i, next: i});
         }
     }
+    list[list.length - 1].next = 0;
 
-    let startT = Date.now();
-    let endT = undefined;
-
-    const length = list.length;
-    let pointer = 0;
-
+    let current = list[0];
     let counter = 0;
     while (counter < moves) {
         counter++;
-        if (counter % 100000 === 0) {
-            endT = Date.now();
-            console.log('Time elapsed:', (endT - startT) / 1000, 's');
-            console.log(counter);
-            startT = Date.now();
-        }
 
-        const three = [list[(pointer + 1) % length],
-                     list[(pointer + 2) % length],
-                     list[(pointer + 3) % length]];
+        let three = [list[current.next]];
+        three.push(list[three[0].next]);
+        three.push(list[three[1].next]);
 
-        let dest = list[pointer] - 1;
+        let dest = current.val - 1;
         if (dest < min) {
             dest = max;
         }
-        while (three.findIndex(nr => nr === dest) !== -1) {
+        while (three.findIndex(nr => nr.val === dest) !== -1) {
             dest--;
             if (dest < min) {
                 dest = max;
             }
         }
 
-        let destI = (list.findIndex(nr => nr === dest) + 1) % length;
-
-        if (length - pointer <= 3 ) {
-            // this seems complicated, use crappy solution. shouldnt happen that often..
-            let newList = [];
-            let newDestI = list.findIndex(nr => nr === dest);
-
-            newList.push(list[newDestI]);
-            newList.push(...three);
-
-            for (let i = 1; i < length; i++) {
-                const nr = list[(newDestI + i) % length];
-                if (three.findIndex(v => v === nr) === -1) {
-                    newList.push(nr);
-                }
-            }
-            const current = list[pointer];
-            list = newList;
-            pointer = (list.findIndex(nr => nr === current) + 1) % length;
+        let destI = undefined;
+        if (dest >= 10) {
+            destI = dest - 1;
         }
-        else if (destI <= pointer) {
-            const copylength = pointer - destI;
-            for (let i = copylength ; i >= 0; i--) {
-                list[destI + 3 + i] = list[destI + i];
-            }
-            for (let i = 0; i < 3; i++) {
-                list[destI + i] = three[i];
-            }
-            pointer = (pointer + 4) % length;
+        else {
+            destI = list.findIndex(nr => nr.val === dest);
         }
-        else { // destI > pointer
-            const copylength = destI - pointer - 3;
-            for (let i = 1; i < copylength; i ++) {
-                list[pointer + i] = list[pointer + i + 3];
-            }
 
-            list[destI - 3] = three[0];
-            list[destI - 2] = three[1];
-            list[destI - 1] = three[2];
-
-            pointer = (pointer + 1) % length;
-        }
+        const newCurr = three[2].next;
+        three[2].next = list[destI].next;
+        list[destI].next = current.next;
+        current.next = newCurr;
+        current = list[newCurr];
     }
 
-    const start = list.findIndex(v => v === 1);
+    const start = list.findIndex(v => v.val === 1);
     if (part2) {
-        const res = list[(start + 1) % length] *
-                    list[(start + 2) % length];
+        const first = list[list[start].next];
+        const res = first.val * list[first.next].val;
         console.log(res);
         return res;
     }
 
-
     let result = '';
-    for (let i = 1; i < length; i++) {
-        result += list[(start + i) % length]
+    let prev = start;
+    for (let i = 1; i < list.length; i++) {
+        prev = list[prev].next;
+        result += list[prev].val;
     }
     console.log(result)
     return result;
-
 }
 
 
-crabCup('389125467', 10);
+strictEqual(crabCup('389125467', 10), '92658374');
 strictEqual(crabCup('389125467', 100), '67384529');
 
-strictEqual(crabCup('916438275', 100), '39564287');
+strictEqual(crabCup('916438275', 100), '39564287'); // part 1
 
-crabCup('916438275', 10000000, true); // final answer 404431096944.
-// Takes about 2h to complete. Probably good to use linked list instead. 
+const startT = Date.now();
+crabCup('916438275', 10000000, true); // part 2, answer 404431096944.
+const endT = Date.now();
+console.log('Time elapsed:', (endT - startT) / 1000, 's');
